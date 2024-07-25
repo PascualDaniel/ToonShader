@@ -10,7 +10,7 @@ using Vector2 = UnityEngine.Vector2;
 public class BenDayBloomEffectComponet : VolumeComponent, IPostProcessComponent
 {
     [Header("Bloom settings")]
-    public FloatParameter tresHold = new FloatParameter(0.9f,true);
+    public FloatParameter treshHold = new FloatParameter(0.9f,true);
 
     public FloatParameter intensity = new FloatParameter(1.0f, true);
 
