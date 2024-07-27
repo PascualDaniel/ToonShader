@@ -530,7 +530,7 @@
     "m_RefNameGeneratedByDisplayName": "BloomTexture",
     "m_DefaultReferenceName": "_BloomTexture",
     "m_OverrideReferenceName": "_Bloom_Texture",
-    "m_GeneratePropertyBlock": true,
+    "m_GeneratePropertyBlock": false,
     "m_UseCustomSlotLabel": false,
     "m_CustomSlotLabel": "",
     "m_DismissedVersion": 0,

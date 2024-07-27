@@ -21,18 +21,20 @@ public class CustomPostProcessPass : ScriptableRenderPass
     private RTHandle[] m_BloomMipUp;
     private RTHandle[] m_BloomMipDown;
     private GraphicsFormat hdrFormat;
-    private BenDayBloomEffectComponet m_BloomEffect;
+    private BenDayBloomEffectComponent m_BloomEffect;
+
+    private bool isReady = false;
 
     public CustomPostProcessPass(Material bloomMaterial, Material compositeMaterial)
     {
-        this.m_bloomMaterial = bloomMaterial;
-        this.m_compositeMaterial = compositeMaterial;
+        m_bloomMaterial = bloomMaterial;
+        m_compositeMaterial = compositeMaterial;
 
         renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
 
         _BloomMipUp = new int[k_MaxPyramidSize];
         _BloomMipDown = new int[k_MaxPyramidSize];
-        m_BloomMipUp = new RTHandle[k_MaxPyramidSize];  
+        m_BloomMipUp = new RTHandle[k_MaxPyramidSize];
         m_BloomMipDown = new RTHandle[k_MaxPyramidSize];
 
         for (int i = 0; i < k_MaxPyramidSize; i++)
@@ -40,32 +42,58 @@ public class CustomPostProcessPass : ScriptableRenderPass
             _BloomMipUp[i] = Shader.PropertyToID("_BloomMipUp" + i);
             _BloomMipDown[i] = Shader.PropertyToID("_BloomMipDown" + i);
 
-            m_BloomMipUp[i] = RTHandles.Alloc(_BloomMipUp[i],name: "_BloomMipUp" + i );
-            m_BloomMipDown[i] = RTHandles.Alloc(_BloomMipDown[i],name: "_BloomMipDown" + i );
+            m_BloomMipUp[i] = RTHandles.Alloc(_BloomMipUp[i], name: "_BloomMipUp" + i);
+            m_BloomMipDown[i] = RTHandles.Alloc(_BloomMipDown[i], name: "_BloomMipDown" + i);
         }
 
         const FormatUsage usage = FormatUsage.Linear | FormatUsage.Render;
-        if(SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, usage))
+        if (SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, usage))
         {
             hdrFormat = GraphicsFormat.B10G11R11_UFloatPack32;
         }
         else
         {
-            hdrFormat = QualitySettings.activeColorSpace == ColorSpace.Linear ? GraphicsFormat.R8G8B8A8_SRGB : GraphicsFormat.R8G8B8A8_UNorm;
+            hdrFormat = QualitySettings.activeColorSpace == ColorSpace.Linear
+             ? GraphicsFormat.R8G8B8A8_SRGB
+             : GraphicsFormat.R8G8B8A8_UNorm;
         }
 
 
 
     }
 
+    public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
+    {
+        m_Descriptor = renderingData.cameraData.cameraTargetDescriptor;
+    }
+    public void SetTarget(RTHandle cameraColorTargetHandle, RTHandle cameraDepthTargetHandle)
+    {
+        
+
+        m_CameraColorTarget = cameraColorTargetHandle;
+        m_CameraDepthTarget = cameraDepthTargetHandle;
+
+        isReady = !(m_CameraColorTarget == null || m_CameraDepthTarget == null); 
+    }
+
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
+        if (!isReady) return;
         VolumeStack stack = VolumeManager.instance.stack;
-        m_BloomEffect = stack.GetComponent<BenDayBloomEffectComponet>();
+        m_BloomEffect = stack.GetComponent<BenDayBloomEffectComponent>();
 
         CommandBuffer cmd = CommandBufferPool.Get();
-        using(new ProfilingScope(cmd, new ProfilingSampler("Custom Post Process Effects"))){
+
+        using (new ProfilingScope(cmd, new ProfilingSampler("Custom Post Process Effects")))
+        {
             SetupBloom(cmd, m_CameraColorTarget);
+
+            m_compositeMaterial.SetFloat("_Cutoff", m_BloomEffect.dotsCutOff.value);
+            m_compositeMaterial.SetFloat("_Density", m_BloomEffect.dotsDensity.value);
+            m_compositeMaterial.SetVector("_Direction", m_BloomEffect.scrollDirection.value);
+
+            Blitter.BlitCameraTexture(cmd, m_CameraColorTarget, m_CameraColorTarget, m_compositeMaterial, 0);
+
         }
 
         context.ExecuteCommandBuffer(cmd);
@@ -73,10 +101,15 @@ public class CustomPostProcessPass : ScriptableRenderPass
 
         CommandBufferPool.Release(cmd);
 
+        
+
+        
+
     }
 
-    private void SetupBloom(CommandBuffer cmd, RTHandle source){
-         // Start at half-res
+    private void SetupBloom(CommandBuffer cmd, RTHandle source)
+    {
+        // Start at half-res
         int downres = 1;
         int tw = m_Descriptor.width >> downres;
         int th = m_Descriptor.height >> downres;
@@ -109,7 +142,7 @@ public class CustomPostProcessPass : ScriptableRenderPass
         Blitter.BlitCameraTexture(cmd, source, m_BloomMipDown[0], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 0);
 
 
-         // Downsample - gaussian pyramid
+        // Downsample - gaussian pyramid
         var lastDown = m_BloomMipDown[0];
         for (int i = 1; i < mipCount; i++)
         {
@@ -135,22 +168,14 @@ public class CustomPostProcessPass : ScriptableRenderPass
         cmd.SetGlobalTexture("_Bloom_Texture", m_BloomMipUp[0]);
         cmd.SetGlobalFloat("_BloomIntensity", m_BloomEffect.intensity.value);
     }
-    public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-    {
-        m_Descriptor = renderingData.cameraData.cameraTargetDescriptor;
-    }
-    public void setTarget(RTHandle cameraColorTargetHandle, RTHandle cameraDepthTargetHandle)
-    {
-        m_CameraColorTarget = cameraColorTargetHandle;
-        m_CameraDepthTarget = cameraDepthTargetHandle;
-    }
+
 
     RenderTextureDescriptor GetCompatibleDescriptor()
             => GetCompatibleDescriptor(m_Descriptor.width, m_Descriptor.height, m_Descriptor.graphicsFormat);
 
     RenderTextureDescriptor GetCompatibleDescriptor(int width, int height, GraphicsFormat format, DepthBits depthBufferBits = DepthBits.None)
         => GetCompatibleDescriptor(m_Descriptor, width, height, format, depthBufferBits);
-    
+
     internal static RenderTextureDescriptor GetCompatibleDescriptor(RenderTextureDescriptor desc, int width, int height, GraphicsFormat format, DepthBits depthBufferBits = DepthBits.None)
     {
         desc.depthBufferBits = (int)depthBufferBits;

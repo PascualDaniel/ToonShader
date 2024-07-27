@@ -7,7 +7,7 @@ using UnityEngine.Rendering.Universal;
 using Vector2 = UnityEngine.Vector2;
 
 [VolumeComponentMenuForRenderPipeline("Custom/Ben Day Bloom",typeof(UniversalRenderPipeline) )]
-public class BenDayBloomEffectComponet : VolumeComponent, IPostProcessComponent
+public class BenDayBloomEffectComponent : VolumeComponent, IPostProcessComponent
 {
     [Header("Bloom settings")]
     public FloatParameter threshold = new FloatParameter(0.9f,true);
