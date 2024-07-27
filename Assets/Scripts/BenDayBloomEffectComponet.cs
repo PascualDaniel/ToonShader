@@ -35,6 +35,6 @@ public class BenDayBloomEffectComponet : VolumeComponent, IPostProcessComponent
 
     public bool IsTileCompatible()
     {
-       return false;
+       return true;
     }
 }

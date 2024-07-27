@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Rendering;
 
-public class CustomPostPorcessRenderFeature : ScriptableRendererFeature
+public class CustomPostProcessRenderFeature : ScriptableRendererFeature
 {
 
    [SerializeField]
@@ -15,6 +15,7 @@ public class CustomPostPorcessRenderFeature : ScriptableRendererFeature
    private Material m_bloomMaterial;
    private Material m_compositeMaterial;
    private CustomPostProcessPass m_customPass;
+
 
    public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
    {
@@ -34,6 +35,18 @@ public class CustomPostPorcessRenderFeature : ScriptableRendererFeature
       CoreUtils.Destroy(m_bloomMaterial);
       CoreUtils.Destroy(m_compositeMaterial);
    }
+
+   public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
+   {
+      if (renderingData.cameraData.camera.cameraType == CameraType.Game)
+      {
+         m_customPass.ConfigureInput(ScriptableRenderPassInput.Depth);
+         m_customPass.ConfigureInput(ScriptableRenderPassInput.Color);
+         m_customPass.setTarget(renderer.cameraColorTargetHandle, renderer.cameraDepthTargetHandle);
+      }
+
+   }
+
 
 
 }
