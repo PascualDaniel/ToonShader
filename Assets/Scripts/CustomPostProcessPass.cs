@@ -11,7 +11,7 @@ public class CustomPostProcessPass : ScriptableRenderPass
 {
     private Material m_bloomMaterial;
     private Material m_compositeMaterial;
-    private RenderTextureDescriptor m_Descriptor;
+    RenderTextureDescriptor m_Descriptor;
     private RTHandle m_CameraColorTarget;
     private RTHandle m_CameraDepthTarget;
 
@@ -79,6 +79,7 @@ public class CustomPostProcessPass : ScriptableRenderPass
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
         if (!isReady) return;
+
         VolumeStack stack = VolumeManager.instance.stack;
         m_BloomEffect = stack.GetComponent<BenDayBloomEffectComponent>();
 
@@ -149,6 +150,28 @@ public class CustomPostProcessPass : ScriptableRenderPass
             // Classic two pass gaussian blur - use mipUp as a temporary target
             //   First pass does 2x downsampling + 9-tap gaussian
             //   Second pass does 9-tap gaussian using a 5-tap filter + bilinear filtering
+
+
+            if(cmd == null)
+            {
+                Debug.Log("CMD is null");
+            }
+            if (m_BloomMipUp[i] == null)
+            {
+                Debug.Log("MipUp is null");
+            }
+            if (bloomMaterial == null)
+            {
+                Debug.Log("BloomMaterial is null");
+            }
+            if (lastDown == null)
+            {
+                Debug.Log("LastDown is null");
+            }
+
+
+
+
             Blitter.BlitCameraTexture(cmd, lastDown, m_BloomMipUp[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 1);
             Blitter.BlitCameraTexture(cmd, m_BloomMipUp[i], m_BloomMipDown[i], RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, bloomMaterial, 2);
 
